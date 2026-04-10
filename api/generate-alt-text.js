@@ -1,26 +1,35 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const https = require('https');
 
 const DEFAULT_PROMPT =
   'You are an accessibility expert. Generate a concise, descriptive alt text for the provided image. ' +
   'Focus on the key visual content, context, and purpose. Keep it under 125 characters unless complexity requires more. ' +
   'Return ONLY the alt text string — no quotes, no explanation, no preamble.';
 
-// Gemini 2.5 Flash can return 503 under high demand — retry up to 3 times
-async function generateWithRetry(model, parts, maxAttempts = 3) {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const result = await model.generateContent(parts);
-      return result.response.text().trim();
-    } catch (err) {
-      const isOverloaded = err.message?.includes('503') || err.message?.includes('UNAVAILABLE') || err.message?.includes('high demand');
-      if (isOverloaded && attempt < maxAttempts) {
-        // Wait 1s, 2s before retrying
-        await new Promise(r => setTimeout(r, attempt * 1000));
-        continue;
-      }
-      throw err;
-    }
-  }
+// Thin wrapper around the OpenAI API — no SDK needed
+function openaiRequest(body, apiKey) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify(body);
+    const req = https.request({
+      hostname: 'api.openai.com',
+      path: '/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Length': Buffer.byteLength(payload),
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch (e) { reject(new Error('Invalid JSON from OpenAI')); }
+      });
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
 }
 
 module.exports = async (req, res) => {
@@ -39,29 +48,40 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const prompt = systemPrompt?.trim() || DEFAULT_PROMPT;
 
-    const altText = await generateWithRetry(model, [
-      prompt,
-      { inlineData: { data: image, mimeType } },
-    ]);
+    // GPT-4o mini vision — pass image as base64 data URL
+    const response = await openaiRequest({
+      model: 'gpt-4o-mini',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${image}` } },
+        ],
+      }],
+      max_tokens: 200,
+    }, process.env.OPENAI_API_KEY);
+
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    const altText = response.choices?.[0]?.message?.content?.trim();
+    if (!altText) throw new Error('No response from OpenAI');
 
     return res.json({ altText });
 
   } catch (err) {
-    console.error('Gemini error:', err.message);
+    console.error('OpenAI error:', err.message);
 
-    let message = 'Gemini API error. Please try again.';
-    if (err.message?.includes('503') || err.message?.includes('UNAVAILABLE') || err.message?.includes('high demand')) {
-      message = 'Gemini is overloaded right now. Please try again in a moment.';
-    } else if (err.message?.includes('quota') || err.message?.includes('429')) {
+    let message = 'Failed to generate alt text. Please try again.';
+    if (err.message?.includes('insufficient_quota') || err.message?.includes('exceeded')) {
+      message = 'OpenAI quota exceeded. Add credits at platform.openai.com/billing.';
+    } else if (err.message?.includes('API key') || err.message?.includes('Incorrect API key')) {
+      message = 'Invalid API key. Check OPENAI_API_KEY in Vercel environment variables.';
+    } else if (err.message?.includes('rate_limit')) {
       message = 'Rate limit hit — wait a moment and try again.';
-    } else if (err.message?.includes('API key')) {
-      message = 'Invalid API key. Check GEMINI_API_KEY in Vercel environment variables.';
-    } else if (err.message?.includes('SAFETY')) {
-      message = 'Image was blocked by Gemini safety filters. Try a different image.';
     }
 
     return res.status(500).json({ message });
