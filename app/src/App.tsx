@@ -1,7 +1,12 @@
-import AltTextTest from './AltTextTest'
+import { Portals } from './portals/Portals'
+import { ErrorBoundary } from './portals/ErrorBoundary'
 
 function App() {
-  return <AltTextTest />
+  return (
+    <ErrorBoundary>
+      <Portals />
+    </ErrorBoundary>
+  )
 }
 
 export default App

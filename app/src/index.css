@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* ── adidasFG — the brand typeface (self-hosted) ──────────────────────────────
+   Two widths: normal ('adidasFG') and condensed ('adidasFG Compressed'), each
+   Regular + Bold + italics. Weight ranges map so 400/500 → Regular and
+   600/700/800 → Bold (the font has no true semibold). */
+@font-face { font-family: 'adidasFG'; src: url('./assets/adidasFG.ttf') format('truetype');            font-weight: 100 550; font-style: normal; font-display: swap; }
+@font-face { font-family: 'adidasFG'; src: url('./assets/adidasFG-It.ttf') format('truetype');         font-weight: 100 550; font-style: italic; font-display: swap; }
+@font-face { font-family: 'adidasFG'; src: url('./assets/adidasFG-Bold.ttf') format('truetype');       font-weight: 560 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'adidasFG'; src: url('./assets/adidasFG-BoldIt.ttf') format('truetype');     font-weight: 560 900; font-style: italic; font-display: swap; }
+@font-face { font-family: 'adidasFG Compressed'; src: url('./assets/adidasFG-Compressed.ttf') format('truetype');         font-weight: 100 550; font-style: normal; font-display: swap; }
+@font-face { font-family: 'adidasFG Compressed'; src: url('./assets/adidasFG-CompressedIt.ttf') format('truetype');       font-weight: 100 550; font-style: italic; font-display: swap; }
+@font-face { font-family: 'adidasFG Compressed'; src: url('./assets/adidasFG-CompressedBold.ttf') format('truetype');     font-weight: 560 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'adidasFG Compressed'; src: url('./assets/adidasFG-CompressedBoldIt.ttf') format('truetype');   font-weight: 560 900; font-style: italic; font-display: swap; }
+
 * { box-sizing: border-box; }
 body { margin: 0; }
 
@@ -7,3 +20,49 @@ body { margin: 0; }
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+
+@keyframes nodeIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes refreshPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(83,20,255,0); border-color: #181818; }
+  25%  { box-shadow: 0 0 0 4px rgba(83,20,255,0.35), 0 0 28px rgba(83,20,255,0.5); border-color: #5314ff; }
+  100% { box-shadow: 0 0 0 0 rgba(83,20,255,0); border-color: #181818; }
+}
+
+/* Ingest modal: custom select + editable title affordances. */
+.pf-select { transition: border-color 0.15s ease, background 0.15s ease; }
+.pf-select:hover { border-color: #353535; background: #111; }
+.pf-select:focus { border-color: #5314ff; background: #111; }
+.pf-titleinput { transition: background 0.15s ease; }
+.pf-titleinput:hover { background: rgba(255,255,255,0.045); }
+.pf-titleinput:focus { background: rgba(255,255,255,0.07); }
+
+/* Inspector: inputs, selects and textareas share one hover + focus affordance.
+   Border lives here (not inline) so :hover/:focus border-color isn't overridden. */
+.pf-input { border: 1px solid #181818; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.pf-input:hover { border-color: #2c2c2c; }
+.pf-input:focus { border-color: #5314ff; box-shadow: 0 0 0 3px rgba(83,20,255,0.18); }
+.pf-input::placeholder { color: #444; }
+
+/* Maintenance attention list — quiet rows that lift on hover. */
+.pf-attn-row { transition: background 0.12s ease, border-color 0.12s ease; }
+.pf-attn-row:hover { background: rgba(255,255,255,0.03); }
+.pf-attn-action { transition: background 0.12s ease, border-color 0.12s ease; }
+.pf-attn-action:hover { background: rgba(255,255,255,0.06); border-color: #333 !important; }
+
+/* Live-data binding pip — signals a node pulls from a corporate source. */
+@keyframes livePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(61,220,132,0.5); }
+  70%  { box-shadow: 0 0 0 5px rgba(61,220,132,0); }
+  100% { box-shadow: 0 0 0 0 rgba(61,220,132,0); }
+}
+
+/* Node card: reveal the link handle + caret only on hover for a calmer canvas. */
+.pf-node .pf-node-handle { opacity: 0; transition: opacity 0.15s ease; }
+.pf-node:hover .pf-node-handle { opacity: 1; }
+.pf-node .pf-node-caret { opacity: 0.55; transition: opacity 0.15s ease; }
+.pf-node:hover .pf-node-caret,
+.pf-node .pf-node-caret.is-collapsed { opacity: 1; }

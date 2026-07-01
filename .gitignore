@@ -11,6 +11,11 @@ dist-ssr
 **/.env
 !**/.env.example
 
+# Claude Code local settings — may contain permission entries with secrets
+# from past debugging sessions (API keys embedded in allowlisted commands)
+.claude/settings.local.json
+**/.claude/settings.local.json
+
 # OS
 .DS_Store
 
