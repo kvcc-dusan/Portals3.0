@@ -1,7 +1,9 @@
 [build]
   base = "app"
   command = "npm run build"
-  publish = "app/dist"
+  # Relative to `base` (already "app"), NOT repo root — Netlify was resolving
+  # this to app/app/dist and failing with "deploy directory does not exist".
+  publish = "dist"
 
 [build.environment]
   # Vite 8 requires Node ^20.19.0 || >=22.12.0 — Netlify's platform default is
