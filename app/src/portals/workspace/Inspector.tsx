@@ -2,17 +2,18 @@ import { useState } from 'react';
 import type { Binding, CorporateContext, NodeContent, PortalNode, ThemeId } from '../types';
 import { TOOL, ui, mono, label as labelStyle } from '../chrome/tokens';
 import { Pill } from '../chrome/Pill';
-import { Eye, Columns, Link, Sparkle, Plus } from '../chrome/Icons';
+import { Eye, Columns, Link, Plus, Sparkle } from '../chrome/Icons';
 import { ProvenanceBadge } from '../chrome/Provenance';
 import { suggestReferences, type RefSuggestion } from '../data/suggest';
 import { DATA_SOURCES, SOURCE_FIELDS, sourceById, fieldOf } from '../data/sources';
+import { embedsOf } from '../data/graph';
 import { THEME_META } from '../render/themes';
 
 const CONTEXTS: CorporateContext[] = ['Company', 'Sustainability', 'Investor Relations', 'Newsroom', 'Brands'];
 const THEMES: ThemeId[] = ['editorial', 'technical', 'index'];
 
 interface InspectorProps {
-  node: PortalNode | null;
+  node: PortalNode;
   nodes: Record<string, PortalNode>;
   onRename: (id: string, name: string) => void;
   onContext: (id: string, ctx: CorporateContext) => void;
@@ -30,7 +31,6 @@ interface InspectorProps {
 }
 
 export function Inspector(props: InspectorProps) {
-  const { node } = props;
   return (
     <aside
       style={{
@@ -45,19 +45,8 @@ export function Inspector(props: InspectorProps) {
         zIndex: 10,
       }}
     >
-      {node ? <Body key={node.id} {...props} node={node} /> : <Empty />}
+      <Body key={props.node.id} {...props} />
     </aside>
-  );
-}
-
-function Empty() {
-  return (
-    <div style={{ padding: 24, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 10, textAlign: 'center' }}>
-      <span style={{ color: TOOL.faint, display: 'inline-flex' }}><Sparkle size={22} /></span>
-      <p style={ui({ color: TOOL.mute, fontSize: 13, lineHeight: 1.5, maxWidth: 200 })}>
-        Select a node on the canvas to inspect its content, context and theme.
-      </p>
-    </div>
   );
 }
 
@@ -120,6 +109,7 @@ function Body({ node, nodes, onRename, onContext, onTheme, onReparent, onEditCon
   );
   const refNodes = node.refs.map((r) => nodes[r]).filter(Boolean);
   const components = countComponents(node);
+  const embeddedOn = node.type === 'block' ? embedsOf(node.id, nodes) : [];
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -133,6 +123,36 @@ function Body({ node, nodes, onRename, onContext, onTheme, onReparent, onEditCon
       </div>
 
       <ProvenanceBadge origin={node.origin ?? 'human-edited'} updatedAt={node.updatedAt} />
+
+      {node.type === 'block' && embeddedOn.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            border: `1px solid rgba(83,20,255,0.35)`,
+            background: 'rgba(83,20,255,0.08)',
+            borderRadius: 9,
+            padding: '10px 12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ color: TOOL.accent, display: 'inline-flex' }}><Link size={12} /></span>
+            <span style={ui({ color: TOOL.primary, fontSize: 12, fontWeight: 600 })}>
+              Embedded on {embeddedOn.length} page{embeddedOn.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          <span style={ui({ color: TOOL.content, fontSize: 11.5, lineHeight: 1.4 })}>
+            One source block — refreshing it updates every page below.
+          </span>
+          {embeddedOn.map((p) => (
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: TOOL.accent, flexShrink: 0 }} />
+              <span style={ui({ color: TOOL.content, fontSize: 12 })}>{p.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Field label="Name">
         <input

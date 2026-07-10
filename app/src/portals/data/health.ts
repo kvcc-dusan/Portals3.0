@@ -1,4 +1,4 @@
-import type { PortalNode } from '../types';
+import type { NodeContent, PortalNode } from '../types';
 import { fieldOf, sourceById } from './sources';
 
 /**
@@ -41,6 +41,17 @@ export function driftedBindings(node: PortalNode) {
     const f = fieldOf(b.sourceId, b.fieldKey);
     return f !== undefined && f.value !== b.syncedValue;
   });
+}
+
+/** Pure preview of a node's content with every drifted binding written to its live value — does not mutate. */
+export function syncedContent(node: PortalNode): NodeContent {
+  let content = node.content;
+  driftedBindings(node).forEach((b) => {
+    const field = fieldOf(b.sourceId, b.fieldKey);
+    if (!field) return;
+    content = { ...content, stats: (content.stats ?? []).map((st, i) => (i === b.statIndex ? { ...st, value: field.value } : st)) };
+  });
+  return content;
 }
 
 export interface NodeHealth {

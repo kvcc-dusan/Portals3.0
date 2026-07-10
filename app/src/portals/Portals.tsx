@@ -2,12 +2,14 @@ import { useState } from 'react';
 import type { AppState, CorporateContext, EdgeId, PortalNode, Surface, ThemeId } from './types';
 import { INITIAL_NODES, ROOT_ID, getRefreshedContent } from './data/graph';
 import { fieldOf } from './data/sources';
+import { syncedContent } from './data/health';
 import { TopNav } from './chrome/TopNav';
 import { Toolbar } from './chrome/Toolbar';
 import { Canvas } from './workspace/Canvas';
 import { Inspector } from './workspace/Inspector';
 import { Preview } from './preview/Preview';
 import { IngestModal } from './ingest/IngestModal';
+import { IngestBar } from './ingest/IngestBar';
 import { Maintenance } from './maintenance/Maintenance';
 import { RefreshDiffModal } from './workspace/RefreshDiffModal';
 import { TOOL } from './chrome/tokens';
@@ -25,8 +27,11 @@ const INITIAL_STATE: AppState = {
   previewTheme: null,
   compareMode: false,
   ingestOpen: false,
+  ingestSeedText: '',
   generatingPages: false,
   pendingRefresh: null,
+  pendingRefreshVisual: false,
+  published: false,
 };
 
 export function Portals() {
@@ -34,7 +39,7 @@ export function Portals() {
   const patch = (next: Partial<AppState>) => setState((s) => ({ ...s, ...next }));
 
   const updateNode = (id: string, change: Partial<PortalNode>) =>
-    setState((s) => ({ ...s, nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...change } } }));
+    setState((s) => ({ ...s, nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...change } }, published: false }));
 
   // ── Selection ─────────────────────────────────────────────────
   const selectNode = (id: string | null) => patch({ selectedId: id, selectedEdgeId: null });
@@ -52,13 +57,55 @@ export function Portals() {
     setState((s) => {
       const node = s.nodes[id];
       if (!node) return s;
-      return { ...s, nodes: { ...s.nodes, [id]: { ...node, content: { ...node.content, ...change }, origin: 'human-edited', updatedAt: 'Just now' } } };
+      return { ...s, nodes: { ...s.nodes, [id]: { ...node, content: { ...node.content, ...change }, origin: 'human-edited', updatedAt: 'Just now' } }, published: false };
     });
   const toggleCollapse = (id: string) =>
     setState((s) => ({
       ...s,
       collapsed: s.collapsed.includes(id) ? s.collapsed.filter((c) => c !== id) : [...s.collapsed, id],
     }));
+
+  // ── Node lifecycle (toolbar) ───────────────────────────────────
+  const addNode = () => {
+    const parentId = state.selectedId ?? state.rootId;
+    const parent = state.nodes[parentId];
+    if (!parent) return;
+    const id = `node-${Date.now()}`;
+    const newNode: PortalNode = {
+      id,
+      type: 'section',
+      name: 'New section',
+      context: parent.context,
+      theme: parent.theme,
+      parentId,
+      refs: [],
+      bindings: [],
+      x: parent.x + 240,
+      y: parent.y,
+      content: { eyebrow: parent.context, title: 'New section', lead: 'Describe this section…' },
+      rendered: false,
+      origin: 'human-edited',
+      updatedAt: 'Just now',
+    };
+    setState((s) => ({ ...s, nodes: { ...s.nodes, [id]: newNode }, selectedId: id, selectedEdgeId: null, published: false }));
+  };
+
+  const deleteNode = () => {
+    const id = state.selectedId;
+    if (!id || id === state.rootId) return;
+    setState((s) => {
+      const target = s.nodes[id];
+      if (!target) return s;
+      const nodes = { ...s.nodes };
+      delete nodes[id];
+      // Lift orphaned children to the deleted node's parent, and strip dangling refs.
+      Object.values(nodes).forEach((n) => {
+        if (n.parentId === id) nodes[n.id] = { ...n, parentId: target.parentId };
+        if (n.refs.includes(id)) nodes[n.id] = { ...nodes[n.id], refs: nodes[n.id].refs.filter((r) => r !== id) };
+      });
+      return { ...s, nodes, selectedId: target.parentId, selectedEdgeId: null, published: false };
+    });
+  };
 
   // ── Edge editing (HITL link oversight) ────────────────────────
   const deleteEdge = (edgeId: EdgeId) => {
@@ -79,29 +126,46 @@ export function Portals() {
     });
 
   // ── Maintenance refresh (Flow A) — stage a diff, commit on approval ──
-  const refresh = (id: string) =>
+  const refresh = (id: string, visual = false) =>
     setState((s) => {
       const node = s.nodes[id];
       if (!node) return s;
-      return { ...s, pendingRefresh: { id, before: node.content, after: getRefreshedContent(node) } };
+      return { ...s, pendingRefresh: { id, before: node.content, after: getRefreshedContent(node) }, pendingRefreshVisual: visual };
+    });
+
+  // Stage a drift resolution as a diff for visual review before committing.
+  const previewDrift = (id: string) =>
+    setState((s) => {
+      const node = s.nodes[id];
+      if (!node) return s;
+      return { ...s, pendingRefresh: { id, before: node.content, after: syncedContent(node), kind: 'drift' }, pendingRefreshVisual: true };
     });
 
   const approveRefresh = () => {
-    const pid = state.pendingRefresh?.id;
-    setState((s) => {
-      const pr = s.pendingRefresh;
-      if (!pr || !s.nodes[pr.id]) return s;
-      return {
-        ...s,
-        nodes: { ...s.nodes, [pr.id]: { ...s.nodes[pr.id], content: pr.after, origin: 'synced', updatedAt: 'Just now' } },
-        pendingRefresh: null,
-        justRefreshedId: pr.id,
-      };
-    });
-    if (pid) setTimeout(() => setState((s) => (s.justRefreshedId === pid ? { ...s, justRefreshedId: null } : s)), 1400);
+    const pr = state.pendingRefresh;
+    if (!pr) return;
+    const pid = pr.id;
+    if (pr.kind === 'drift') {
+      syncNode(pid);
+      patch({ pendingRefresh: null, pendingRefreshVisual: false, justRefreshedId: pid });
+    } else {
+      setState((s) => {
+        const cur = s.pendingRefresh;
+        if (!cur || !s.nodes[cur.id]) return s;
+        return {
+          ...s,
+          nodes: { ...s.nodes, [cur.id]: { ...s.nodes[cur.id], content: cur.after, origin: 'synced', updatedAt: 'Just now' } },
+          pendingRefresh: null,
+          pendingRefreshVisual: false,
+          justRefreshedId: cur.id,
+          published: false,
+        };
+      });
+    }
+    setTimeout(() => setState((s) => (s.justRefreshedId === pid ? { ...s, justRefreshedId: null } : s)), 1400);
   };
 
-  const rejectRefresh = () => patch({ pendingRefresh: null });
+  const rejectRefresh = () => patch({ pendingRefresh: null, pendingRefreshVisual: false });
 
   // ── Live data bindings (Flow C) ───────────────────────────────
   // All three set origin → 'synced' since the figure now mirrors a source.
@@ -157,7 +221,7 @@ export function Portals() {
         return b;
       });
       if (!changed) return s;
-      return { ...s, nodes: { ...s.nodes, [id]: { ...node, content, bindings, origin: 'synced', updatedAt: 'Just now' } } };
+      return { ...s, nodes: { ...s.nodes, [id]: { ...node, content, bindings, origin: 'synced', updatedAt: 'Just now' } }, published: false };
     });
 
   // Human signs off on AI-generated content (resolves a "review" issue).
@@ -185,7 +249,7 @@ export function Portals() {
   // and open the primary one in Preview — no per-node "Generate" click.
   const placeProposed = (proposed: PortalNode[]) => {
     if (proposed.length === 0) {
-      patch({ ingestOpen: false });
+      patch({ ingestOpen: false, ingestSeedText: '' });
       return;
     }
     const ids = proposed.map((n) => n.id);
@@ -196,7 +260,7 @@ export function Portals() {
       const added = Object.fromEntries(
         proposed.map((n) => [n.id, { ...n, rendered: false, origin: 'ai-generated' as const, updatedAt: 'Just now' }]),
       );
-      return { ...s, nodes: { ...s.nodes, ...added }, ingestOpen: false, selectedId: primary, selectedEdgeId: null, focusId: primary, generatingPages: true };
+      return { ...s, nodes: { ...s.nodes, ...added }, ingestOpen: false, ingestSeedText: '', selectedId: primary, selectedEdgeId: null, focusId: primary, generatingPages: true };
     });
 
     // Step 2: ~1.3s later every new node is rendered and Preview opens on the primary.
@@ -213,21 +277,27 @@ export function Portals() {
   const selectedNode = state.selectedId ? state.nodes[state.selectedId] : null;
   const effectiveTheme: ThemeId = previewNode ? state.previewTheme ?? previewNode.theme : 'editorial';
   const breadcrumb = selectedNode?.name ?? state.nodes[state.rootId].name;
+  const pageCount = Object.values(state.nodes).filter((n) => n.rendered !== false && n.type !== 'site').length;
 
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: TOOL.bg, display: 'flex', flexDirection: 'column' }}>
-      <TopNav surface={state.surface} onSurface={switchSurface} />
+      <TopNav surface={state.surface} onSurface={switchSurface} published={state.published} />
 
       {state.surface === 'workspace' && (
         <>
           <Toolbar
             breadcrumb={breadcrumb}
             canPreview={!!state.selectedId}
-            onIngest={() => patch({ ingestOpen: true })}
+            canDelete={!!state.selectedId && state.selectedId !== state.rootId}
+            published={state.published}
+            pageCount={pageCount}
             onPreview={() => openPreview(state.selectedId)}
+            onAddNode={addNode}
+            onDeleteNode={deleteNode}
+            onPublish={() => patch({ published: true })}
           />
           <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-            <div style={{ position: 'absolute', inset: 0, right: 320 }}>
+            <div style={{ position: 'absolute', inset: 0, right: selectedNode ? 320 : 0 }}>
               <Canvas
                 nodes={state.nodes}
                 selectedId={state.selectedId}
@@ -241,24 +311,32 @@ export function Portals() {
                 onAddReference={addReference}
                 onToggleCollapse={toggleCollapse}
               />
+              <IngestBar
+                nodes={state.nodes}
+                onSubmit={(seedText) => patch({ ingestOpen: true, ingestSeedText: seedText })}
+                onSyncNode={syncNode}
+                onOpenMaintenance={() => patch({ surface: 'maintenance' })}
+              />
             </div>
-            <Inspector
-              node={selectedNode}
-              nodes={state.nodes}
-              onRename={rename}
-              onContext={setContext}
-              onTheme={setTheme}
-              onReparent={reparent}
-              onEditContent={editContent}
-              onPreview={() => openPreview(state.selectedId)}
-              onCompare={() => openPreview(state.selectedId, true)}
-              onRefresh={refresh}
-              onGenerate={generatePage}
-              onAddRef={addReference}
-              onBindStat={bindStat}
-              onSyncBinding={syncBinding}
-              onUnbindStat={unbindStat}
-            />
+            {selectedNode && (
+              <Inspector
+                node={selectedNode}
+                nodes={state.nodes}
+                onRename={rename}
+                onContext={setContext}
+                onTheme={setTheme}
+                onReparent={reparent}
+                onEditContent={editContent}
+                onPreview={() => openPreview(state.selectedId)}
+                onCompare={() => openPreview(state.selectedId, true)}
+                onRefresh={refresh}
+                onGenerate={generatePage}
+                onAddRef={addReference}
+                onBindStat={bindStat}
+                onSyncBinding={syncBinding}
+                onUnbindStat={unbindStat}
+              />
+            )}
           </div>
         </>
       )}
@@ -276,6 +354,7 @@ export function Portals() {
           onReview={markReviewed}
           onRefresh={refresh}
           onGenerate={generatePage}
+          onPreviewDiff={(id, top) => (top === 'drift' ? previewDrift(id) : refresh(id, true))}
         />
       )}
 
@@ -290,17 +369,25 @@ export function Portals() {
             onToggleCompare={() => patch({ compareMode: !state.compareMode })}
             onExit={() => patch({ surface: 'workspace' })}
             onRefresh={refresh}
+            onEditContent={editContent}
           />
         </div>
       )}
 
-      {state.ingestOpen && <IngestModal onClose={() => patch({ ingestOpen: false })} onPlace={placeProposed} />}
+      {state.ingestOpen && (
+        <IngestModal
+          initialText={state.ingestSeedText}
+          onClose={() => patch({ ingestOpen: false, ingestSeedText: '' })}
+          onPlace={placeProposed}
+        />
+      )}
 
       {state.pendingRefresh && state.nodes[state.pendingRefresh.id] && (
         <RefreshDiffModal
           node={state.nodes[state.pendingRefresh.id]}
           before={state.pendingRefresh.before}
           after={state.pendingRefresh.after}
+          startVisual={state.pendingRefreshVisual}
           onApprove={approveRefresh}
           onReject={rejectRefresh}
         />

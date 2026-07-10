@@ -2,17 +2,27 @@ import type { NodeContent, PortalNode } from '../types';
 import { TOOL, ui, mono } from '../chrome/tokens';
 import { ProvenanceBadge } from '../chrome/Provenance';
 import { THEME_META } from '../render/themes';
+import { PageRenderer } from '../render/PageRenderer';
+import { WireframeSketch } from '../render/WireframeSketch';
+
+const CARD_W = 268;
+const THUMB_W = CARD_W - 28; // minus card padding
+const THUMB_H = 130;
+const PAGE_W = 1160;
+const THUMB_SCALE = THUMB_W / PAGE_W;
 
 /** Rich-on-hover preview so the resting card can stay minimal. */
 export function NodeHovercard({ node }: { node: PortalNode }) {
   const composes = countComponents(node.content);
   const refs = node.refs?.length ?? 0;
   const bindings = node.bindings ?? [];
+  const showsPage = node.type === 'page' || node.type === 'section';
+  const isRendered = node.rendered !== false;
 
   return (
     <div
       style={{
-        width: 268,
+        width: CARD_W,
         background: '#0b0b0b',
         border: `1px solid ${TOOL.border}`,
         borderRadius: 12,
@@ -33,6 +43,20 @@ export function NodeHovercard({ node }: { node: PortalNode }) {
             <span style={mono({ color: TOOL.mute, fontSize: 9 })}>{THEME_META[node.theme].label}</span>
           </div>
         </div>
+
+        {showsPage && (
+          <div>
+            {isRendered ? (
+              <div style={{ width: THUMB_W, height: THUMB_H, borderRadius: 7, overflow: 'hidden', position: 'relative', background: '#fff' }}>
+                <div style={{ width: PAGE_W, transform: `scale(${THUMB_SCALE})`, transformOrigin: 'top left' }}>
+                  <PageRenderer content={node.content} theme={node.theme} context={node.context} bare />
+                </div>
+              </div>
+            ) : (
+              <WireframeSketch content={node.content} theme={node.theme} />
+            )}
+          </div>
+        )}
 
         {node.origin && <ProvenanceBadge origin={node.origin} updatedAt={node.updatedAt} />}
 

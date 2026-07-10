@@ -1,7 +1,14 @@
-import type { CorporateContext, NodeContent, ThemeId } from '../types';
+import { useState } from 'react';
+import type { ComponentKind, CorporateContext, NodeContent, ThemeId } from '../types';
 import { composeTheme } from './themes';
 import { BLOCKS } from './blocks';
 import { PAGE, layoutFor } from './blocks/page-tokens';
+
+interface EmbedRef {
+  id: string;
+  name: string;
+  content: NodeContent;
+}
 
 interface PageRendererProps {
   content: NodeContent;
@@ -9,16 +16,35 @@ interface PageRendererProps {
   context: CorporateContext;
   /** Hide the site shell (brand bar + footer) for compact side-by-side compare. */
   bare?: boolean;
+  /** Outline these block kinds — used by the Maintenance visual diff. */
+  highlightKinds?: Set<ComponentKind>;
+  /** Enable hover/click affordances per block — used by Preview's block editor. */
+  editable?: boolean;
+  selectedKind?: ComponentKind | null;
+  onSelectBlock?: (kind: ComponentKind) => void;
+  /** Transcluded block nodes this page references — rendered after the main sequence. */
+  embeds?: EmbedRef[];
 }
 
 const NAV = ['Company', 'Sustainability', 'Investors', 'Newsroom', 'Brands'];
+
+const KIND_LABEL: Record<ComponentKind, string> = {
+  hero: 'Hero',
+  'pull-quote': 'Quote',
+  'text-block': 'Text',
+  'image-grid': 'Images',
+  'data-table': 'Table',
+  'stat-callout': 'Stats',
+  'card-grid': 'Cards',
+  'link-list': 'Links',
+};
 
 /**
  * THE render step. Given (node content + theme) it produces a finished page.
  * Themes are swappable inputs — there is exactly one renderer; layout is driven
  * entirely by the theme grammar, never by per-theme page components.
  */
-export function PageRenderer({ content, theme, context, bare = false }: PageRendererProps) {
+export function PageRenderer({ content, theme, context, bare = false, highlightKinds, editable, selectedKind, onSelectBlock, embeds }: PageRendererProps) {
   const sequence = composeTheme(theme, content);
   const layout = layoutFor(theme);
 
@@ -38,11 +64,108 @@ export function PageRenderer({ content, theme, context, bare = false }: PageRend
       >
         {sequence.map((kind) => {
           const Block = BLOCKS[kind];
-          return <Block key={kind} content={content} theme={theme} />;
+          return (
+            <BlockSlot
+              key={kind}
+              kind={kind}
+              highlighted={!!highlightKinds?.has(kind)}
+              editable={!!editable}
+              selected={selectedKind === kind}
+              onSelect={onSelectBlock}
+            >
+              <Block content={content} theme={theme} />
+            </BlockSlot>
+          );
         })}
+
+        {embeds?.map((embed) => (
+          <EmbeddedBlock key={embed.id} embed={embed} theme={theme} />
+        ))}
       </main>
 
       {!bare && <SiteFooter />}
+    </div>
+  );
+}
+
+/**
+ * Renders a transcluded block node — same content, composed with THIS page's
+ * theme. The "living connections" proof: refresh the block once, it updates
+ * on every page that references it.
+ */
+function EmbeddedBlock({ embed, theme }: { embed: EmbedRef; theme: ThemeId }) {
+  const sequence = composeTheme(theme, embed.content);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 8, borderTop: `1px dashed ${PAGE.line}` }}>
+      <span
+        style={{
+          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+          fontSize: 10,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color: PAGE.faint,
+        }}
+      >
+        ⟲ Shared block · {embed.name}
+      </span>
+      {sequence.map((kind) => {
+        const Block = BLOCKS[kind];
+        return <Block key={kind} content={embed.content} theme={theme} />;
+      })}
+    </div>
+  );
+}
+
+function BlockSlot({
+  kind, children, highlighted, editable, selected, onSelect,
+}: {
+  kind: ComponentKind;
+  children: React.ReactNode;
+  highlighted: boolean;
+  editable: boolean;
+  selected: boolean;
+  onSelect?: (kind: ComponentKind) => void;
+}) {
+  const [hover, setHover] = useState(false);
+  const showOutline = highlighted || selected || (editable && hover);
+  const showLabel = highlighted || selected || (editable && hover);
+
+  return (
+    <div
+      onMouseEnter={editable ? () => setHover(true) : undefined}
+      onMouseLeave={editable ? () => setHover(false) : undefined}
+      onClick={editable ? () => onSelect?.(kind) : undefined}
+      style={{
+        position: 'relative',
+        cursor: editable ? 'pointer' : undefined,
+        outline: showOutline ? `2px solid ${selected ? '#5314ff' : highlighted ? '#5314ff' : 'rgba(83,20,255,0.5)'}` : 'none',
+        outlineOffset: 6,
+        borderRadius: 3,
+        transition: 'outline-color 0.1s',
+      }}
+    >
+      {showLabel && (
+        <span
+          style={{
+            position: 'absolute',
+            top: -11,
+            left: 6,
+            background: '#5314ff',
+            color: '#fff',
+            fontSize: 9.5,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            padding: '2px 7px',
+            borderRadius: 4,
+            fontFamily: PAGE.body,
+            pointerEvents: 'none',
+          }}
+        >
+          {KIND_LABEL[kind]}
+        </span>
+      )}
+      {children}
     </div>
   );
 }

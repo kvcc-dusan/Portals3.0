@@ -60,3 +60,15 @@ export const Link = ({ size = 14 }: IconProps) => (
 export const Columns = ({ size = 14 }: IconProps) => (
   <svg {...base(size)}><rect x="3" y="4" width="8" height="16" rx="1" /><rect x="13" y="4" width="8" height="16" rx="1" /></svg>
 );
+export const Pencil = ({ size = 14 }: IconProps) => (
+  <svg {...base(size)}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>
+);
+export const Info = ({ size = 14 }: IconProps) => (
+  <svg {...base(size)}><circle cx="12" cy="12" r="10" /><path d="M12 11v6" /><path d="M12 7.5v.01" /></svg>
+);
+export const Globe = ({ size = 14 }: IconProps) => (
+  <svg {...base(size)}><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15 15 0 010 20 15 15 0 010-20z" /></svg>
+);
+export const Mail = ({ size = 14 }: IconProps) => (
+  <svg {...base(size)}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>
+);

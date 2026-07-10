@@ -1,4 +1,4 @@
-import type { NodeContent, PortalNode } from '../types';
+import type { ComponentKind, NodeContent, PortalNode } from '../types';
 
 /**
  * The pre-loaded adidas-group-style site model. This is the source of truth the
@@ -66,7 +66,7 @@ const areas: PortalNode[] = [
     context: 'Sustainability',
     theme: 'editorial',
     parentId: 'site',
-    refs: ['sec-sus-materials', 'sec-ir-results'],
+    refs: ['sec-sus-materials', 'sec-ir-results', 'blk-carbon-targets'],
     bindings: [],
     x: 460,
     y: 560,
@@ -162,7 +162,7 @@ const areas: PortalNode[] = [
 
 const sections: PortalNode[] = [
   // Company
-  sectionNode('sec-co-strategy', 'Our Strategy', 'Company', 'technical', 'area-company', 60, [], [
+  sectionNode('sec-co-strategy', 'Our Strategy', 'Company', 'technical', 'area-company', 60, ['blk-carbon-targets'], [
     { value: '2030', label: 'Strategy horizon' },
     { value: '5', label: 'Strategic priorities' },
   ]),
@@ -473,9 +473,33 @@ const CARBON_REFRESHED: NodeContent = {
   ],
 };
 
+// Shared block refresh — this is the "living connections" demo beat: refreshing
+// this ONE block updates it everywhere it's embedded (Sustainability landing +
+// Our Strategy), since every page reads the block node's content live.
+const CARBON_TARGETS_REFRESHED: NodeContent = {
+  eyebrow: 'Sustainability',
+  title: '2030 Targets',
+  lead: '2030 Targets — a content block maintained inside its section.',
+  stats: [
+    { value: '−40%', label: 'Absolute emissions by 2030' },
+    { value: '100%', label: 'Renewables at own sites (achieved)' },
+  ],
+};
+
 const REFRESH_CONTENT: Record<string, NodeContent> = {
   'sec-sus-carbon': CARBON_REFRESHED,
+  'blk-carbon-targets': CARBON_TARGETS_REFRESHED,
 };
+
+/** Nodes this node references that are embeddable content blocks (transclusion). */
+export function embeddedBlocks(node: PortalNode, nodes: Record<string, PortalNode>): PortalNode[] {
+  return node.refs.map((id) => nodes[id]).filter((n): n is PortalNode => !!n && n.type === 'block');
+}
+
+/** Pages (any node) whose refs include this block — used to show "Embedded on". */
+export function embedsOf(blockId: string, nodes: Record<string, PortalNode>): PortalNode[] {
+  return Object.values(nodes).filter((n) => n.refs.includes(blockId));
+}
 
 export function getRefreshedContent(node: PortalNode): NodeContent {
   const authored = REFRESH_CONTENT[node.id];
@@ -485,6 +509,49 @@ export function getRefreshedContent(node: PortalNode): NodeContent {
     ...node.content,
     lead: node.content.lead ? `${node.content.lead} ${note}` : note,
   };
+}
+
+// ─── Block-level AI edit (Preview) ──────────────────────────────────────────────
+// Canned per-block rewrites. Carbon Neutrality gets real authored pairs for the
+// hero and pull-quote (Flow C hero node); every other node/kind gets a generic
+// but visible transform so "Rewrite block" always does something.
+
+const CARBON_AI_HERO: Partial<NodeContent> = {
+  title: 'Net-Zero by 2045: Our Accelerated Climate Roadmap',
+  lead: 'We pulled our value-chain net-zero target forward five years to 2045, backed by verified progress on renewable energy and recycled materials.',
+};
+
+const CARBON_AI_QUOTE: Partial<NodeContent> = {
+  quote: {
+    text: 'Every tonne of carbon we avoid today is a tonne we don’t have to offset tomorrow. That is the whole strategy.',
+    attribution: 'Head of Sustainability, adidas Group',
+  },
+};
+
+const AI_BLOCK_EDITS: Record<string, Partial<Record<ComponentKind, Partial<NodeContent>>>> = {
+  'sec-sus-carbon': { hero: CARBON_AI_HERO, 'pull-quote': CARBON_AI_QUOTE },
+};
+
+export function getAiEditedField(nodeId: string, kind: ComponentKind, content: NodeContent): Partial<NodeContent> {
+  const authored = AI_BLOCK_EDITS[nodeId]?.[kind];
+  if (authored) return authored;
+
+  switch (kind) {
+    case 'hero':
+      return { lead: content.lead ? content.lead.split('. ')[0].trim().replace(/\.?$/, '.') : content.lead };
+    case 'text-block':
+      return { body: content.body?.slice(0, Math.max(1, content.body.length - 1)) };
+    case 'pull-quote':
+      return content.quote ? { quote: { ...content.quote, text: content.quote.text.split('. ')[0].trim().replace(/\.?$/, '.') } } : {};
+    case 'stat-callout':
+      return { stats: content.stats };
+    case 'card-grid':
+      return { cards: content.cards };
+    case 'link-list':
+      return { links: content.links };
+    default:
+      return {};
+  }
 }
 
 // ─── Flow B — Ingest ────────────────────────────────────────────────────────────

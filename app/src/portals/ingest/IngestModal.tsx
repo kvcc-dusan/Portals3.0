@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CorporateContext, PortalNode, ThemeId } from '../types';
 import { TOOL, ui, mono, label as labelStyle } from '../chrome/tokens';
 import { Pill } from '../chrome/Pill';
@@ -6,6 +6,7 @@ import { Close, Sparkle, Trash, Chevron, Link } from '../chrome/Icons';
 import { INGEST_RAW_TEXT, INGEST_PROPOSED, INGEST_CONNECTIONS, INITIAL_NODES, ROOT_ID } from '../data/graph';
 import type { ConnectionSuggestion } from '../data/graph';
 import { THEME_META } from '../render/themes';
+import { WireframeSketch } from '../render/WireframeSketch';
 
 type Phase = 'input' | 'generating' | 'proposed' | 'connections';
 
@@ -33,16 +34,30 @@ const DEFAULT_ATTACH_ID = INGEST_PROPOSED[0]?.parentId ?? 'area-newsroom';
 interface IngestModalProps {
   onClose: () => void;
   onPlace: (proposed: PortalNode[]) => void;
+  /** Seed text handed off from the floating IngestBar. Non-empty skips step 1. */
+  initialText?: string;
 }
 
 const cloneProposed = (): PortalNode[] => INGEST_PROPOSED.map((n) => ({ ...n, content: { ...n.content } }));
 
-export function IngestModal({ onClose, onPlace }: IngestModalProps) {
-  const [text, setText] = useState(INGEST_RAW_TEXT);
-  const [phase, setPhase] = useState<Phase>('input');
+export function IngestModal({ onClose, onPlace, initialText }: IngestModalProps) {
+  const [text, setText] = useState(initialText || INGEST_RAW_TEXT);
+  const [phase, setPhase] = useState<Phase>(initialText ? 'generating' : 'input');
   const [proposed, setProposed] = useState<PortalNode[]>(cloneProposed);
   const [attachId, setAttachId] = useState(DEFAULT_ATTACH_ID);
   const [accepted, setAccepted] = useState<Set<string>>(() => new Set(INGEST_CONNECTIONS.map((c) => connKey(c.from, c.to))));
+  const [previewId, setPreviewId] = useState<string | null>(null);
+
+  // The IngestBar already collected the content — jump straight to analysing it.
+  useEffect(() => {
+    if (!initialText) return;
+    const t = setTimeout(() => {
+      setProposed(cloneProposed());
+      setPhase('proposed');
+    }, 1100);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const attachName = SITE_AREAS.find((a) => a.id === attachId)?.name ?? 'your site';
   const proposedIds = useMemo(() => new Set(proposed.map((n) => n.id)), [proposed]);
@@ -97,6 +112,7 @@ export function IngestModal({ onClose, onPlace }: IngestModalProps) {
 
   const childrenOf = (parentId: string) => proposed.filter((n) => n.parentId === parentId);
   const roots = proposed.filter((n) => !proposedIds.has(n.parentId ?? ''));
+  const previewNode = proposed.find((n) => n.id === previewId) ?? roots[0] ?? proposed[0];
 
   const descendantsOf = (id: string): Set<string> => {
     const out = new Set<string>();
@@ -113,7 +129,7 @@ export function IngestModal({ onClose, onPlace }: IngestModalProps) {
 
   return (
     <div onClick={onClose} style={overlay}>
-      <div onClick={(e) => e.stopPropagation()} style={panel}>
+      <div onClick={(e) => e.stopPropagation()} style={{ ...panel, maxWidth: phase === 'proposed' ? 880 : 640 }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 24px', borderBottom: `1px solid ${TOOL.border}` }}>
           <span style={{ color: TOOL.accent, display: 'inline-flex' }}><Sparkle size={16} /></span>
@@ -155,9 +171,9 @@ export function IngestModal({ onClose, onPlace }: IngestModalProps) {
               </div>
             </>
           ) : phase === 'proposed' ? (
-            <>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
               {/* Minimal attach header — also roots the tree (no duplicate anchor row) */}
-              <div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={attachHeader}>
                   <span style={mono({ color: TOOL.faint, fontSize: 10, letterSpacing: '0.14em', flexShrink: 0 })}>ATTACHES UNDER</span>
                   <AttachSelect value={attachId} onChange={reanchor} options={SITE_AREAS} />
@@ -178,11 +194,26 @@ export function IngestModal({ onClose, onPlace }: IngestModalProps) {
                       descendantsOf={descendantsOf}
                       onUpdate={update}
                       onRemove={remove}
+                      onFocus={setPreviewId}
+                      focusedId={previewNode?.id ?? null}
                     />
                   ))}
                 </div>
               </div>
-            </>
+
+              {/* Preview panel — a cheap wireframe sketch, not a finished design */}
+              {previewNode && (
+                <div style={{ width: 240, flexShrink: 0, position: 'sticky', top: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <span style={mono({ color: TOOL.faint, fontSize: 9, letterSpacing: '0.12em' })}>
+                    PREVIEW · {previewNode.name.toUpperCase()}
+                  </span>
+                  <WireframeSketch content={previewNode.content} theme={previewNode.theme} />
+                  <p style={ui({ color: TOOL.faint, fontSize: 10.5, lineHeight: 1.5, margin: 0 })}>
+                    Structure only — hover a node or change its theme to update. Final design renders after placement.
+                  </p>
+                </div>
+              )}
+            </div>
           ) : (
             <ConnectionsStep
               proposed={proposed}
@@ -232,10 +263,13 @@ interface ProposedNodeProps {
   descendantsOf: (id: string) => Set<string>;
   onUpdate: (id: string, change: Partial<PortalNode>) => void;
   onRemove: (id: string) => void;
+  onFocus: (id: string) => void;
+  focusedId: string | null;
 }
 
-function ProposedNode({ node, proposed, proposedIds, attachId, attachName, childrenOf, descendantsOf, onUpdate, onRemove }: ProposedNodeProps) {
+function ProposedNode({ node, proposed, proposedIds, attachId, attachName, childrenOf, descendantsOf, onUpdate, onRemove, onFocus, focusedId }: ProposedNodeProps) {
   const [hover, setHover] = useState(false);
+  const isFocused = focusedId === node.id;
   const kids = childrenOf(node.id);
   const descendants = descendantsOf(node.id);
   const isPage = node.type === 'page';
@@ -251,11 +285,14 @@ function ProposedNode({ node, proposed, proposedIds, attachId, attachName, child
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div
-        onMouseEnter={() => setHover(true)}
+        onMouseEnter={() => {
+          setHover(true);
+          onFocus(node.id);
+        }}
         onMouseLeave={() => setHover(false)}
         style={{
           borderRadius: 11,
-          border: `1px solid ${hover ? 'rgba(255,255,255,0.14)' : isPage ? '#242424' : TOOL.border}`,
+          border: `1px solid ${isFocused ? TOOL.accent : hover ? 'rgba(255,255,255,0.14)' : isPage ? '#242424' : TOOL.border}`,
           background: isPage ? '#161616' : '#0c0c0c',
           padding: 14,
           display: 'flex',
@@ -316,6 +353,8 @@ function ProposedNode({ node, proposed, proposedIds, attachId, attachName, child
               descendantsOf={descendantsOf}
               onUpdate={onUpdate}
               onRemove={onRemove}
+              onFocus={onFocus}
+              focusedId={focusedId}
             />
           ))}
         </div>

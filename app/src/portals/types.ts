@@ -103,6 +103,8 @@ export interface PendingRefresh {
   id: string;
   before: NodeContent;
   after: NodeContent;
+  /** When 'drift', approval commits via the binding-sync path instead of a plain content swap. */
+  kind?: 'drift';
 }
 
 export type Surface = 'workspace' | 'maintenance' | 'preview';
@@ -129,8 +131,14 @@ export interface AppState {
   previewTheme: ThemeId | null;
   compareMode: boolean;
   ingestOpen: boolean;
+  /** Text handed off from the floating IngestBar — seeds the modal past step 1. */
+  ingestSeedText: string;
   /** Transient "Generating pages…" state after placing ingested nodes. */
   generatingPages: boolean;
   /** A refresh awaiting human approval (diff shown), or null. */
   pendingRefresh: PendingRefresh | null;
+  /** Whether the pending refresh diff should open straight into visual compare mode. */
+  pendingRefreshVisual: boolean;
+  /** Whether the site has been published since the last edit. */
+  published: boolean;
 }

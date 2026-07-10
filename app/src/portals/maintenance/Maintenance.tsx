@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { PortalNode } from '../types';
 import { TOOL, ui, mono } from '../chrome/tokens';
 import { Canvas } from '../workspace/Canvas';
+import { Columns } from '../chrome/Icons';
 import { computeHealth, attentionList, issueReason, HEALTH_META, HEALTHY_COLOR, type HealthIssue } from '../data/health';
 
 interface MaintenanceProps {
@@ -16,6 +17,7 @@ interface MaintenanceProps {
   onReview: (id: string) => void;
   onRefresh: (id: string) => void;
   onGenerate: (id: string) => void;
+  onPreviewDiff: (id: string, top: HealthIssue) => void;
 }
 
 const ISSUE_ORDER: HealthIssue[] = ['drift', 'review', 'stale', 'draft'];
@@ -84,6 +86,7 @@ export function Maintenance(props: MaintenanceProps) {
                   selected={node.id === selectedId}
                   onOpen={() => onFocusNode(node.id)}
                   onAction={() => runAction(node, h.top!)}
+                  onCompare={h.top === 'drift' || h.top === 'stale' ? () => props.onPreviewDiff(node.id, h.top!) : undefined}
                 />
               ))
             )}
@@ -137,7 +140,7 @@ function Chip({ label, count, color, active, onClick }: { label: string; count: 
 }
 
 function AttentionRow({
-  node, parentName, issues, selected, onOpen, onAction,
+  node, parentName, issues, selected, onOpen, onAction, onCompare,
 }: {
   node: PortalNode;
   parentName?: string;
@@ -145,6 +148,7 @@ function AttentionRow({
   selected: boolean;
   onOpen: () => void;
   onAction: () => void;
+  onCompare?: () => void;
 }) {
   const top = issues[0];
   const meta = HEALTH_META[top];
@@ -176,28 +180,52 @@ function AttentionRow({
           {secondary && <span style={{ color: TOOL.faint }}> · also {secondary}</span>}
         </span>
       </div>
-      <button
-        className="pf-attn-action"
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onAction();
-        }}
-        style={ui({
-          flexShrink: 0,
-          padding: '6px 14px',
-          borderRadius: 100,
-          border: `1px solid ${TOOL.border}`,
-          background: 'transparent',
-          color: TOOL.content,
-          fontSize: 12,
-          fontWeight: 500,
-          cursor: 'pointer',
-          marginTop: 1,
-        })}
-      >
-        {meta.action}
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginTop: 1 }}>
+        {onCompare && (
+          <button
+            type="button"
+            title="Visual compare"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCompare();
+            }}
+            style={{
+              width: 27,
+              height: 27,
+              borderRadius: '50%',
+              border: `1px solid ${TOOL.border}`,
+              background: 'transparent',
+              color: TOOL.mute,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <Columns size={12} />
+          </button>
+        )}
+        <button
+          className="pf-attn-action"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAction();
+          }}
+          style={ui({
+            padding: '6px 14px',
+            borderRadius: 100,
+            border: `1px solid ${TOOL.border}`,
+            background: 'transparent',
+            color: TOOL.content,
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: 'pointer',
+          })}
+        >
+          {meta.action}
+        </button>
+      </div>
     </div>
   );
 }

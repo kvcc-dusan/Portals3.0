@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EdgeId, PortalNode } from '../types';
 import { TOOL, ui, mono } from '../chrome/tokens';
+import { Info } from '../chrome/Icons';
 import { PROVENANCE_META } from '../chrome/Provenance';
 import { NodeCard } from './NodeCard';
 import { NodeHovercard } from './NodeHovercard';
@@ -503,53 +504,81 @@ function ZoomControls({ scale, onIn, onOut, onFit }: { scale: number; onIn: () =
 }
 
 function Legend() {
+  const [open, setOpen] = useState(false);
   return (
     <div
       onMouseDown={(e) => e.stopPropagation()}
-      style={{
-        position: 'absolute',
-        left: 16,
-        bottom: 16,
-        background: 'rgba(0,0,0,0.7)',
-        border: `1px solid ${TOOL.border}`,
-        borderRadius: 10,
-        padding: '10px 14px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-        backdropFilter: 'blur(8px)',
-      }}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      style={{ position: 'absolute', right: 16, top: 16, zIndex: 12 }}
     >
-      <span style={mono({ color: TOOL.faint, fontSize: 9, letterSpacing: '0.12em' })}>EDGES · click to select</span>
-      <LegendRow color="#3a3a3a" dashed={false} label="Structure" />
-      <LegendRow color={TOOL.accent} dashed label="Reference · drag ○ to link" />
+      <div
+        title="Legend"
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: '50%',
+          background: 'rgba(0,0,0,0.72)',
+          border: `1px solid ${TOOL.border}`,
+          color: TOOL.mute,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        <Info size={13} />
+      </div>
 
-      <div style={{ height: 1, background: TOOL.border, margin: '2px 0' }} />
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 32,
+            right: 0,
+            width: 180,
+            background: 'rgba(0,0,0,0.82)',
+            border: `1px solid ${TOOL.border}`,
+            borderRadius: 9,
+            padding: '9px 11px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <span style={mono({ color: TOOL.faint, fontSize: 8.5, letterSpacing: '0.1em' })}>EDGES</span>
+          <LegendRow color="#3a3a3a" dashed={false} label="Structure" />
+          <LegendRow color={TOOL.accent} dashed label="Reference · drag to link" />
 
-      <span style={mono({ color: TOOL.faint, fontSize: 9, letterSpacing: '0.12em' })}>PROVENANCE</span>
-      <LegendDotRow color={PROVENANCE_META['ai-generated'].color} label={PROVENANCE_META['ai-generated'].label} />
-      <LegendDotRow color={PROVENANCE_META['human-edited'].color} label={PROVENANCE_META['human-edited'].label} />
-      <LegendDotRow color={PROVENANCE_META.synced.color} label={PROVENANCE_META.synced.label} />
+          <div style={{ height: 1, background: TOOL.border, margin: '1px 0' }} />
+
+          <span style={mono({ color: TOOL.faint, fontSize: 8.5, letterSpacing: '0.1em' })}>PROVENANCE</span>
+          <LegendDotRow color={PROVENANCE_META['ai-generated'].color} label={PROVENANCE_META['ai-generated'].label} />
+          <LegendDotRow color={PROVENANCE_META['human-edited'].color} label={PROVENANCE_META['human-edited'].label} />
+          <LegendDotRow color={PROVENANCE_META.synced.color} label={PROVENANCE_META.synced.label} />
+        </div>
+      )}
     </div>
   );
 }
 
 function LegendDotRow({ color, label }: { color: string; label: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0, margin: '0 8px' }} />
-      <span style={ui({ color: TOOL.content, fontSize: 11 })}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, flexShrink: 0, margin: '0 8px' }} />
+      <span style={ui({ color: TOOL.content, fontSize: 10 })}>{label}</span>
     </div>
   );
 }
 
 function LegendRow({ color, dashed, label }: { color: string; dashed: boolean; label: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <svg width="22" height="6">
-        <line x1="0" y1="3" x2="22" y2="3" stroke={color} strokeWidth="1.6" strokeDasharray={dashed ? '3 3' : undefined} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <svg width="18" height="6">
+        <line x1="0" y1="3" x2="18" y2="3" stroke={color} strokeWidth="1.6" strokeDasharray={dashed ? '3 3' : undefined} />
       </svg>
-      <span style={ui({ color: TOOL.content, fontSize: 11 })}>{label}</span>
+      <span style={ui({ color: TOOL.content, fontSize: 10 })}>{label}</span>
     </div>
   );
 }
