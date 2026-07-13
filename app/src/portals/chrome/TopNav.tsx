@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { Surface } from '../types';
 import { TOOL, ui } from './tokens';
 import { Chevron, Settings } from './Icons';
@@ -8,6 +9,11 @@ interface TopNavProps {
   published: boolean;
 }
 
+const PROFILE_LINKS = [
+  { label: 'Concept walkthrough', href: 'https://claude.ai/code/artifact/6e4d90a6-c1a8-4d4c-925c-e91dcbeb5006' },
+  { label: 'Documentation', href: 'https://claude.ai/code/artifact/879d7105-01f5-45e5-a237-4a8c30cc5d8d' },
+];
+
 const TABS: { id: Surface; label: string }[] = [
   { id: 'workspace', label: 'Workspace' },
   { id: 'maintenance', label: 'Maintenance' },
@@ -15,6 +21,25 @@ const TABS: { id: Surface; label: string }[] = [
 ];
 
 export function TopNav({ surface, onSurface, published }: TopNavProps) {
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const handlePointerDown = (e: MouseEvent) => {
+      if (!profileRef.current?.contains(e.target as Node)) setProfileOpen(false);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setProfileOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [profileOpen]);
+
   return (
     <div
       style={{
@@ -100,27 +125,72 @@ export function TopNav({ surface, onSurface, published }: TopNavProps) {
           <span style={{ color: TOOL.mute, display: 'inline-flex' }}>
             <Settings size={19} />
           </span>
-          <div
-            style={{
-              width: 23,
-              height: 23,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg,#5314ff,#9a7bff)',
-              position: 'relative',
-            }}
-          >
-            <span
+          <div ref={profileRef} style={{ position: 'relative' }}>
+            <div
+              onClick={() => setProfileOpen((o) => !o)}
               style={{
-                position: 'absolute',
-                top: -1,
-                right: -1,
-                width: 6,
-                height: 6,
+                width: 23,
+                height: 23,
                 borderRadius: '50%',
-                background: '#3ddc84',
-                border: `1.5px solid ${TOOL.panel}`,
+                background: 'linear-gradient(135deg,#5314ff,#9a7bff)',
+                position: 'relative',
+                cursor: 'pointer',
               }}
-            />
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  top: -1,
+                  right: -1,
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: '#3ddc84',
+                  border: `1.5px solid ${TOOL.panel}`,
+                }}
+              />
+            </div>
+            {profileOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 10px)',
+                  right: 0,
+                  minWidth: 190,
+                  background: TOOL.panel,
+                  border: `1px solid ${TOOL.border}`,
+                  borderRadius: 12,
+                  padding: 6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  boxShadow: '0 16px 40px rgba(0,0,0,0.55)',
+                  zIndex: 40,
+                }}
+              >
+                {PROFILE_LINKS.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setProfileOpen(false)}
+                    style={ui({
+                      display: 'block',
+                      color: TOOL.content,
+                      fontSize: 13,
+                      textDecoration: 'none',
+                      padding: '8px 10px',
+                      borderRadius: 7,
+                    })}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = TOOL.borderSoft)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
