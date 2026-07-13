@@ -38,7 +38,7 @@ export function ImageGrid({ content, theme }: BlockProps) {
               style={{
                 marginTop: 10,
                 fontFamily: PAGE.body,
-                fontSize: 13,
+                fontSize: 12,
                 lineHeight: 1.45,
                 color: PAGE.mute,
               }}

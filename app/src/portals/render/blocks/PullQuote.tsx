@@ -7,36 +7,63 @@ export function PullQuote({ content, theme }: BlockProps) {
 
   const technical = theme === 'technical';
 
+  if (technical) {
+    return (
+      <figure style={{ margin: 0, maxWidth: '100%', borderLeft: `2px solid ${PAGE.ink}`, paddingLeft: 24 }}>
+        <blockquote
+          style={{
+            margin: 0,
+            fontFamily: PAGE.display,
+            fontWeight: 500,
+            color: PAGE.ink,
+            lineHeight: 1.5,
+            letterSpacing: '-0.01em',
+            fontSize: 18,
+          }}
+        >
+          {quote.text}
+        </blockquote>
+        {quote.attribution && (
+          <figcaption
+            style={{
+              marginTop: 18,
+              fontFamily: PAGE.body,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: PAGE.mute,
+            }}
+          >
+            {quote.attribution}
+          </figcaption>
+        )}
+      </figure>
+    );
+  }
+
   return (
-    <figure
-      style={{
-        margin: 0,
-        maxWidth: theme === 'editorial' ? 860 : '100%',
-        borderLeft: technical ? `3px solid ${PAGE.ink}` : 'none',
-        paddingLeft: technical ? 24 : 0,
-      }}
-    >
+    <figure style={{ margin: 0, maxWidth: 760, marginLeft: 'auto', marginRight: 'auto', textAlign: 'center', padding: '8px 20px' }}>
       <blockquote
         style={{
           margin: 0,
-          fontFamily: PAGE.display,
-          fontWeight: technical ? 500 : 600,
+          fontFamily: PAGE.body,
+          fontWeight: 400,
           color: PAGE.ink,
-          lineHeight: 1.2,
-          letterSpacing: '-0.01em',
-          fontSize: technical ? 20 : 'clamp(24px, 3.4vw, 38px)',
+          lineHeight: 1.35,
+          fontSize: 'clamp(24px, 3vw, 34px)',
         }}
       >
-        {technical ? quote.text : `“${quote.text}”`}
+        “{quote.text}”
       </blockquote>
       {quote.attribution && (
         <figcaption
           style={{
-            marginTop: 18,
+            marginTop: 20,
             fontFamily: PAGE.body,
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: '2px',
             textTransform: 'uppercase',
             color: PAGE.mute,
           }}

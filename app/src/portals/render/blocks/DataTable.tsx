@@ -7,6 +7,7 @@ export function DataTable({ content }: BlockProps) {
 
   return (
     <figure style={{ margin: 0, width: '100%' }}>
+      <div style={{ height: 2, background: PAGE.ink, marginBottom: 2 }} />
       <table
         style={{
           width: '100%',
@@ -24,11 +25,11 @@ export function DataTable({ content }: BlockProps) {
                   textAlign: i === 0 ? 'left' : 'right',
                   fontSize: 11,
                   fontWeight: 700,
-                  letterSpacing: '0.08em',
+                  letterSpacing: '1.5px',
                   textTransform: 'uppercase',
                   color: PAGE.mute,
-                  padding: '0 0 10px',
-                  borderBottom: `2px solid ${PAGE.ink}`,
+                  padding: '10px 0',
+                  borderBottom: `1px solid ${PAGE.line}`,
                 }}
               >
                 {col}
@@ -50,6 +51,7 @@ export function DataTable({ content }: BlockProps) {
                       fontWeight: isTotal ? 700 : c === 0 ? 600 : 400,
                       color: PAGE.ink,
                       padding: '12px 0',
+                      borderTop: isTotal ? `2px solid ${PAGE.ink}` : 'none',
                       borderBottom: `1px solid ${PAGE.line}`,
                     }}
                   >

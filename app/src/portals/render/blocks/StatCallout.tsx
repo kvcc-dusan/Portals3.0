@@ -29,7 +29,7 @@ export function StatCallout({ content, theme }: BlockProps) {
               style={{
                 fontFamily: PAGE.display,
                 fontWeight: 800,
-                fontSize: 30,
+                fontSize: 32,
                 letterSpacing: '-0.02em',
                 color: PAGE.ink,
                 lineHeight: 1,
@@ -37,7 +37,18 @@ export function StatCallout({ content, theme }: BlockProps) {
             >
               {stat.value}
             </div>
-            <div style={{ fontFamily: PAGE.body, fontSize: 12, color: PAGE.mute, marginTop: 8, lineHeight: 1.3 }}>
+            <div
+              style={{
+                fontFamily: PAGE.body,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: PAGE.mute,
+                marginTop: 8,
+                lineHeight: 1.3,
+              }}
+            >
               {stat.label}
             </div>
           </div>
@@ -47,13 +58,13 @@ export function StatCallout({ content, theme }: BlockProps) {
   }
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 0, textAlign: 'center' }}>
       {stats.map((stat, i) => (
         <div
           key={i}
           style={{
-            flex: '1 1 180px',
-            padding: '0 28px',
+            flex: '1 1 160px',
+            padding: '4px 32px',
             borderLeft: i === 0 ? 'none' : `1px solid ${PAGE.line}`,
           }}
         >
@@ -61,15 +72,26 @@ export function StatCallout({ content, theme }: BlockProps) {
             style={{
               fontFamily: PAGE.display,
               fontWeight: 800,
-              fontSize: 'clamp(36px, 4.5vw, 52px)',
-              letterSpacing: '-0.03em',
+              fontSize: 'clamp(40px, 5vw, 64px)',
+              letterSpacing: '-0.02em',
               color: PAGE.ink,
               lineHeight: 1,
             }}
           >
             {stat.value}
           </div>
-          <div style={{ fontFamily: PAGE.body, fontSize: 14, color: PAGE.mute, marginTop: 12, lineHeight: 1.35 }}>
+          <div
+            style={{
+              fontFamily: PAGE.body,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '1.5px',
+              textTransform: 'uppercase',
+              color: PAGE.mute,
+              marginTop: 10,
+              lineHeight: 1.3,
+            }}
+          >
             {stat.label}
           </div>
         </div>

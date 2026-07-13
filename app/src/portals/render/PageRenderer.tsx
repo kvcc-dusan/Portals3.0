@@ -47,36 +47,45 @@ const KIND_LABEL: Record<ComponentKind, string> = {
 export function PageRenderer({ content, theme, context, bare = false, highlightKinds, editable, selectedKind, onSelectBlock, embeds }: PageRendererProps) {
   const sequence = composeTheme(theme, content);
   const layout = layoutFor(theme);
+  // A hero WITH an image escapes the centered content column so its banner can
+  // run full-bleed, matching the real site. A text-only hero stays in <main>
+  // like any other block — nothing to bleed, and it avoids double-padding.
+  const heroEscapes = sequence[0] === 'hero' && !!content.heroImage && theme !== 'technical';
+  const bodySequence = heroEscapes ? sequence.slice(1) : sequence;
+
+  const renderSlot = (kind: ComponentKind) => {
+    const Block = BLOCKS[kind];
+    return (
+      <BlockSlot
+        key={kind}
+        kind={kind}
+        highlighted={!!highlightKinds?.has(kind)}
+        editable={!!editable}
+        selected={selectedKind === kind}
+        onSelect={onSelectBlock}
+      >
+        <Block content={content} theme={theme} />
+      </BlockSlot>
+    );
+  };
 
   return (
     <div style={{ background: PAGE.paper, color: PAGE.ink, minHeight: '100%', fontFamily: PAGE.body }}>
       {!bare && <BrandBar context={context} />}
 
+      {heroEscapes && renderSlot('hero')}
+
       <main
         style={{
           maxWidth: layout.maxWidth,
           margin: '0 auto',
-          padding: `${bare ? 40 : 64}px ${layout.gutter}px ${bare ? 48 : 96}px`,
+          padding: `${bare ? 40 : heroEscapes ? 56 : 64}px ${layout.gutter}px ${bare ? 48 : 96}px`,
           display: 'flex',
           flexDirection: 'column',
           gap: layout.sectionGap,
         }}
       >
-        {sequence.map((kind) => {
-          const Block = BLOCKS[kind];
-          return (
-            <BlockSlot
-              key={kind}
-              kind={kind}
-              highlighted={!!highlightKinds?.has(kind)}
-              editable={!!editable}
-              selected={selectedKind === kind}
-              onSelect={onSelectBlock}
-            >
-              <Block content={content} theme={theme} />
-            </BlockSlot>
-          );
-        })}
+        {bodySequence.map(renderSlot)}
 
         {embeds?.map((embed) => (
           <EmbeddedBlock key={embed.id} embed={embed} theme={theme} />
@@ -101,9 +110,9 @@ function EmbeddedBlock({ embed, theme }: { embed: EmbedRef; theme: ThemeId }) {
         style={{
           fontFamily: "'JetBrains Mono', ui-monospace, monospace",
           fontSize: 10,
-          letterSpacing: '0.1em',
+          letterSpacing: '0.2em',
           textTransform: 'uppercase',
-          color: PAGE.faint,
+          color: PAGE.mute,
         }}
       >
         ⟲ Shared block · {embed.name}
@@ -170,122 +179,134 @@ function BlockSlot({
   );
 }
 
+const SUB_NAV: Record<CorporateContext, string[]> = {
+  Company: ['Our Strategy', 'Leadership', 'History'],
+  Sustainability: ['Climate', 'Materials & Circularity', 'Supply Chain'],
+  'Investor Relations': ['Quarterly Results', 'Financial Calendar', 'Annual Report'],
+  Newsroom: ['Press Releases', 'Media Library'],
+  Brands: ['Performance', 'Originals'],
+};
+
 function BrandBar({ context }: { context: CorporateContext }) {
+  const subNav = SUB_NAV[context] ?? [];
   return (
-    <header
-      style={{
-        background: PAGE.ink,
-        color: PAGE.paper,
-        padding: '0 32px',
-        height: 64,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 40,
-      }}
-    >
-      <span
+    <header style={{ background: PAGE.paper }}>
+      <div
         style={{
-          fontFamily: PAGE.body,
-          fontWeight: 700,
-          fontSize: 24,
-          letterSpacing: '-0.04em',
+          height: 56,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 40,
+          padding: '0 32px',
+          borderBottom: `1px solid ${PAGE.line}`,
         }}
       >
-        adidas
-      </span>
-      <nav style={{ display: 'flex', gap: 28, flex: 1 }}>
-        {NAV.map((item) => {
-          const active = item === context || (item === 'Investors' && context === 'Investor Relations');
-          return (
+        <img src="/adidas-logo-white.svg" alt="adidas" style={{ height: 20, width: 'auto', filter: 'invert(1)', display: 'block', flexShrink: 0 }} />
+        <nav style={{ display: 'flex', gap: 28, flex: 1 }}>
+          {NAV.map((item) => {
+            const active = item === context || (item === 'Investors' && context === 'Investor Relations');
+            return (
+              <span
+                key={item}
+                style={{
+                  fontFamily: PAGE.body,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: active ? PAGE.ink : PAGE.mute,
+                  borderBottom: active ? `2px solid ${PAGE.ink}` : '2px solid transparent',
+                  paddingBottom: 4,
+                }}
+              >
+                {item}
+              </span>
+            );
+          })}
+        </nav>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ fontFamily: PAGE.body, fontSize: 12, letterSpacing: '0.06em', color: PAGE.mute }}>EN ▾</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={PAGE.ink} strokeWidth="1.8">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.3-4.3" />
+          </svg>
+        </span>
+      </div>
+      {subNav.length > 0 && (
+        <div style={{ height: 36, display: 'flex', alignItems: 'center', gap: 24, padding: '0 32px', borderBottom: `1px solid ${PAGE.line}` }}>
+          {subNav.map((s, i) => (
             <span
-              key={item}
+              key={s}
               style={{
                 fontFamily: PAGE.body,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 600,
-                letterSpacing: '0.08em',
+                letterSpacing: '0.06em',
                 textTransform: 'uppercase',
-                color: active ? PAGE.paper : 'rgba(255,255,255,0.6)',
-                borderBottom: active ? `2px solid ${PAGE.paper}` : '2px solid transparent',
-                paddingBottom: 2,
+                color: i === 0 ? PAGE.ink : PAGE.mute,
               }}
             >
-              {item}
+              {s}
             </span>
-          );
-        })}
-      </nav>
-      <span style={{ fontFamily: PAGE.body, fontSize: 12, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.6)' }}>
-        EN ▾
-      </span>
+          ))}
+        </div>
+      )}
     </header>
   );
 }
 
 function SiteFooter() {
-  const cols = [
-    { title: 'Company', links: ['Our Strategy', 'Leadership', 'History', 'Careers'] },
-    { title: 'Sustainability', links: ['Climate', 'Materials', 'Supply Chain'] },
-    { title: 'Investors', links: ['Quarterly Results', 'Financial Calendar', 'Share'] },
-    { title: 'Newsroom', links: ['Press Releases', 'Media Library'] },
-  ];
+  const utilityLinks = ['FAQ', 'Sitemap', 'Contact', 'Imprint', 'Legal Notice', 'Privacy Notice'];
   return (
-    <footer style={{ background: PAGE.ink, color: PAGE.paper, padding: '56px 32px 40px' }}>
-      <div
-        style={{
-          maxWidth: 1080,
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: 32,
-        }}
-      >
-        {cols.map((col) => (
-          <div key={col.title}>
-            <div
+    <footer style={{ background: PAGE.paper, borderTop: `2px solid ${PAGE.ink}`, padding: '32px 32px 24px' }}>
+      <div style={{ maxWidth: 1080, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 16,
+            paddingBottom: 20,
+            borderBottom: `1px solid ${PAGE.line}`,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontFamily: PAGE.body, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: PAGE.ink }}>
+              Follow us on
+            </span>
+            <span
               style={{
-                fontFamily: PAGE.body,
-                fontSize: 11,
+                width: 26,
+                height: 26,
+                background: PAGE.ink,
+                color: PAGE.paper,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 12,
                 fontWeight: 700,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                color: 'rgba(255,255,255,0.5)',
-                marginBottom: 14,
+                fontFamily: PAGE.body,
               }}
             >
-              {col.title}
-            </div>
-            {col.links.map((l) => (
-              <div
-                key={l}
-                style={{
-                  fontFamily: PAGE.body,
-                  fontSize: 14,
-                  color: 'rgba(255,255,255,0.85)',
-                  marginBottom: 9,
-                }}
-              >
+              in
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontFamily: PAGE.body, fontSize: 12, color: PAGE.mute }}>More about adidas</span>
+            <span style={{ fontFamily: PAGE.body, fontWeight: 700, fontSize: 16, letterSpacing: '-0.04em', color: PAGE.ink }}>adidas</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+            {utilityLinks.map((l) => (
+              <span key={l} style={{ fontFamily: PAGE.body, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: PAGE.mute }}>
                 {l}
-              </div>
+              </span>
             ))}
           </div>
-        ))}
-      </div>
-      <div
-        style={{
-          maxWidth: 1080,
-          margin: '40px auto 0',
-          paddingTop: 24,
-          borderTop: '1px solid rgba(255,255,255,0.15)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontFamily: PAGE.body,
-          fontSize: 12,
-          color: 'rgba(255,255,255,0.5)',
-        }}
-      >
-        <span style={{ fontFamily: PAGE.body, fontWeight: 700, letterSpacing: '-0.04em', fontSize: 18 }}>adidas</span>
-        <span>© 2025 adidas AG. All rights reserved.</span>
+          <span style={{ fontFamily: PAGE.body, fontSize: 11, color: PAGE.faint }}>© 2026 adidas AG. All rights reserved.</span>
+        </div>
       </div>
     </footer>
   );

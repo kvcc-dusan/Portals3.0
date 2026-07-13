@@ -1,5 +1,5 @@
 import type { NodeContent } from '../types';
-import { PAGE, eyebrowStyle } from './blocks/page-tokens';
+import { PAGE, eyebrowStyle, headingStyle } from './blocks/page-tokens';
 
 interface NewsletterRendererProps {
   content: NodeContent;
@@ -18,9 +18,9 @@ export function NewsletterRenderer({ content }: NewsletterRendererProps) {
     <div style={{ background: PAGE.wash, minHeight: '100%', padding: '32px 16px', fontFamily: PAGE.body }}>
       <div style={{ maxWidth: 480, margin: '0 auto', background: PAGE.paper, border: `1px solid ${PAGE.line}` }}>
         {/* Masthead */}
-        <div style={{ padding: '20px 28px', borderBottom: `1px solid ${PAGE.line}`, textAlign: 'center' }}>
+        <div style={{ padding: '20px 28px', borderBottom: `2px solid ${PAGE.ink}`, textAlign: 'center' }}>
           <span style={{ fontFamily: PAGE.body, fontWeight: 700, fontSize: 20, letterSpacing: '-0.04em', color: PAGE.ink }}>adidas</span>
-          <div style={{ marginTop: 4, fontFamily: PAGE.body, fontSize: 10.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: PAGE.faint }}>
+          <div style={{ marginTop: 6, fontFamily: PAGE.body, fontSize: 10.5, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: PAGE.mute }}>
             Group Newsroom Digest
           </div>
         </div>
@@ -32,7 +32,7 @@ export function NewsletterRenderer({ content }: NewsletterRendererProps) {
         <div style={{ padding: '28px 28px 8px' }}>
           {content.eyebrow && <div style={eyebrowStyle}>{content.eyebrow}</div>}
           {content.title && (
-            <h1 style={{ fontFamily: PAGE.display, fontSize: 26, lineHeight: 1.15, fontWeight: 700, color: PAGE.ink, margin: '10px 0 0' }}>
+            <h1 style={{ ...headingStyle(2), fontSize: 24, lineHeight: 1.1, margin: '10px 0 0' }}>
               {content.title}
             </h1>
           )}
@@ -47,8 +47,8 @@ export function NewsletterRenderer({ content }: NewsletterRendererProps) {
           <div style={{ display: 'flex', gap: 1, background: PAGE.line, margin: '20px 28px' }}>
             {stats.map((s, i) => (
               <div key={i} style={{ flex: 1, background: PAGE.paper, padding: '14px 10px', textAlign: 'center' }}>
-                <div style={{ fontFamily: PAGE.display, fontSize: 20, fontWeight: 700, color: PAGE.ink }}>{s.value}</div>
-                <div style={{ fontFamily: PAGE.body, fontSize: 10.5, color: PAGE.faint, marginTop: 3, lineHeight: 1.3 }}>{s.label}</div>
+                <div style={{ fontFamily: PAGE.display, fontSize: 22, fontWeight: 800, color: PAGE.ink, letterSpacing: '-0.02em' }}>{s.value}</div>
+                <div style={{ fontFamily: PAGE.body, fontSize: 10, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: PAGE.mute, marginTop: 4, lineHeight: 1.3 }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -63,17 +63,21 @@ export function NewsletterRenderer({ content }: NewsletterRendererProps) {
         <div style={{ padding: '0 28px 28px' }}>
           <div
             style={{
-              display: 'inline-block',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 10,
               background: PAGE.ink,
               color: PAGE.paper,
               fontFamily: PAGE.body,
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: '0.02em',
-              padding: '12px 22px',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '1.5px',
+              textTransform: 'uppercase',
+              padding: '13px 22px',
             }}
           >
-            Read on adidas-group.com →
+            Read on adidas-group.com
+            <span style={{ fontSize: 15 }}>⟶</span>
           </div>
         </div>
 
