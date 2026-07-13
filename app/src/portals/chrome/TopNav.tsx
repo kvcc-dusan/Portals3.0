@@ -10,8 +10,8 @@ interface TopNavProps {
 }
 
 const PROFILE_LINKS = [
-  { label: 'Concept walkthrough', href: 'https://claude.ai/code/artifact/6e4d90a6-c1a8-4d4c-925c-e91dcbeb5006' },
-  { label: 'Documentation', href: 'https://claude.ai/code/artifact/879d7105-01f5-45e5-a237-4a8c30cc5d8d' },
+  { label: 'Concept walkthrough', href: '/concept-walkthrough.html' },
+  { label: 'Documentation', href: '/documentation.html' },
 ];
 
 const TABS: { id: Surface; label: string }[] = [
