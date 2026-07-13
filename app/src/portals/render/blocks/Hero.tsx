@@ -1,16 +1,17 @@
-import { PAGE, eyebrowStyle, headingStyle } from './page-tokens';
+import { PAGE, eyebrowStyle, headingStyle, layoutFor } from './page-tokens';
 import type { BlockProps } from './types';
 
 /**
- * The image variant is rendered full-bleed by PageRenderer (escapes <main>),
- * so this component never applies its own max-width/gutter wrapper — it
- * always inherits containment from whatever parent placed it (the page's
- * <main>, or, for the image banner, nothing at all).
+ * The image banner escapes <main> to run full-bleed. The text below it
+ * (subtitle/lead) escapes right along with it, so it must re-apply <main>'s
+ * gutter/max-width itself here — otherwise it renders flush to the viewport
+ * edge instead of lining up with the rest of the page.
  */
 export function Hero({ content, theme }: BlockProps) {
   const { eyebrow, title, subtitle, lead, heroImage } = content;
   const compact = theme === 'technical';
   const showImage = !!heroImage && !compact;
+  const layout = layoutFor(theme);
 
   return (
     <header style={{ display: 'flex', flexDirection: 'column' }}>
@@ -51,7 +52,17 @@ export function Hero({ content, theme }: BlockProps) {
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 10 : 18, marginTop: showImage ? 40 : 0 }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: compact ? 10 : 18,
+          marginTop: showImage ? 40 : 0,
+          ...(showImage
+            ? { maxWidth: layout.maxWidth, marginLeft: 'auto', marginRight: 'auto', padding: `0 ${layout.gutter}px` }
+            : {}),
+        }}
+      >
         {!showImage && eyebrow && (
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontFamily: PAGE.body, fontSize: 12, color: PAGE.ink, textDecoration: 'underline', textUnderlineOffset: 3 }}>Home</span>
